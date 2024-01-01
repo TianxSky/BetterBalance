@@ -6,10 +6,10 @@ using CounterStrikeSharp.API.Core;
 public class BetterBalanceConfig : BasePluginConfig
 {
     [JsonPropertyName("BalanceMode")]
-    public int BalanceMode { get; set; } = 1; // 1: balance on team max difference, 2: balance on team max players
+    public int BalanceMode { get; set; } = 1; // 1: balance on team max difference, 2: balance on team max players 3: scamble mode
 
     [JsonPropertyName("MoveMode")]
-    public int MoveMode { get; set; } = 1; // 1: move recent player 2: move random players 3: scramble all players 4: scramble all players based on kills
+    public int MoveMode { get; set; } = 1; // 1: move recent player 2: move random players | Scamble mode: 1: Scramble random 2: Scramble by kills
 
     [JsonPropertyName("KillPlayerOnBalance")]
     public bool KillPlayerOnSwitch { get; set; } = false;
