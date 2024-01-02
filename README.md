@@ -50,7 +50,7 @@ Here's a plugin for CounterStrikeSharp that automatically balances teams based o
 * 2 - Move Random: Move a random player
 ### Balance Mode 3:
 * 1 - Scramble Random: Randomly putting each player on both teams
-* 2 - Scramble Based On Kills: Putting players even only to both teams and will put the extra player(if any) on the opposite team of player with highest kill
+* 2 - Scramble Based On Kills: Putting players to both teams based on kills and will put the extra player(if any) on the opposite team of player with highest kill
 
   
 ## Plugin Config
