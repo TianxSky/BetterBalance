@@ -6,16 +6,16 @@
     - I use !balance 3 2 all the time to create a fair and balanced team
 
 ## Balance Mode
-* 1 = Max Difference: Based on team's difference in numbers of players, auto balanced if difference > Config.MaxDifference
-* 2 = Team Limits: Based on max players can be on each team, defined in config
-* 3 = Scramble: This will affect all players
+* 1 - Max Difference: Based on team's difference in numbers of players, auto balanced if difference > Config.MaxDifference
+* 2 - Team Limits: Based on max players can be on each team, defined in config
+* 3 - Scramble: This will affect all players
 ## Move Mode
 # Balance Mode 1/2:
-* 1 = Move Recent: Move the last player that joins the server
-* 2 = Move Random: Move a random player
+* 1 - Move Recent: Move the last player that joins the server
+* 2 - Move Random: Move a random player
 # Balance Mode 3:
-* 1 = Scramble Random: Randomly putting each player on both team
-* 2 = Scramble Based On Kills: Putting players even only to both teams and will put the extra player(if any) on the opposite team of player with highest kill
+* 1 - Scramble Random: Randomly putting each player on both team
+* 2 - Scramble Based On Kills: Putting players even only to both teams and will put the extra player(if any) on the opposite team of player with highest kill
   
 ## Plugin Config
 ```json
