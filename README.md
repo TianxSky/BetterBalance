@@ -68,7 +68,7 @@ Here's a plugin for CounterStrikeSharp that automatically balances teams based o
 ## Roadmap
 
 - [ ] Schedule balance on round end
-- [ ] 
+      
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 [contributors-shield]: https://img.shields.io/github/contributors/TianxSky/BetterBalance.svg?style=for-the-badge
