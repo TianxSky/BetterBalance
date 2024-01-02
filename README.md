@@ -1,4 +1,4 @@
-## Better Balance
+# Better Balance
  Auto Balance Plugin for CS2 using CounterStrikeSharp
 ## Commands
 1. css_balance: requires 2 arguments(balance mode, move mode) see below
@@ -9,11 +9,11 @@
 * 1 - Max Difference: Based on team's difference in numbers of players, auto balanced if difference > Config.MaxDifference
 * 2 - Team Limits: Based on max players can be on each team, defined in config
 * 3 - Scramble: This will affect all players
-## Move Mode
-# Balance Mode 1/2:
+# Move Mode
+## Balance Mode 1/2:
 * 1 - Move Recent: Move the last player that joins the server
 * 2 - Move Random: Move a random player
-# Balance Mode 3:
+## Balance Mode 3:
 * 1 - Scramble Random: Randomly putting each player on both team
 * 2 - Scramble Based On Kills: Putting players even only to both teams and will put the extra player(if any) on the opposite team of player with highest kill
   
