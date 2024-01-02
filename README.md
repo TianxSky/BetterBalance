@@ -1,5 +1,9 @@
-# Better Balance
+## Better Balance
  Auto Balance Plugin for CS2 using CounterStrikeSharp
+## Commands
+1. css_balance: requires 2 arguments(balance mode, move mode) see below
+   - Usage: !balance 3 2
+    - I use !balance 3 2 all the time to create a fair and balanced team
 
 ## Balance Mode
 * 1 = Max Difference: Based on team's difference in numbers of players, auto balanced if difference > Config.MaxDifference
@@ -25,3 +29,5 @@
   "ConfigVersion": 1
 }
 ```
+## Todo
+- [ ] Schedule balance on round end 
