@@ -1,6 +1,5 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
@@ -9,7 +8,7 @@ namespace BetterBalance
 {
     public class BetterBalance : BasePlugin, IPluginConfig<BetterBalanceConfig>
     {
-        private List<CCSPlayerController> RecentPlayers = new();
+        private readonly List<CCSPlayerController> RecentPlayers = new();
         public BetterBalanceConfig Config { get; set; } = new();
         public override string ModuleAuthor => "Tian";
         public override string ModuleName => "Better Balance";
@@ -17,163 +16,192 @@ namespace BetterBalance
 
         public static bool IsPlayerValid(CCSPlayerController? player)
         {
-            return player is { IsValid: true, IsHLTV: false, TeamNum: 2 or 3 };
-        }
-
-        [ConsoleCommand("css_balance", "Balance Teams")]
-        [CommandHelper(minArgs: 2, usage: "balance_mode move_mode]", whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
-        [RequiresPermissions("@css/generic")]
-        public void Balance(CCSPlayerController? player, CommandInfo info)
-        {
-            var arg1 = info.GetArg(1);
-            var arg2 = info.GetArg(2);
-            var players = Utilities.GetPlayers().Where(IsPlayerValid).ToList();
-            var tplayers = players.Where(p => p.TeamNum == 2).ToList();
-            var ctplayers = players.Where(p => p.TeamNum == 3).ToList();
-            BBLog.Log(0, $"PlayerCounts: {players.Count}");
-            BBLog.Log(0, $"T PlayerCounts: {tplayers.Count}");
-            BBLog.Log(0, $"CT PlayerCounts: {ctplayers.Count}");
-            if (!int.TryParse(arg1, out int result1))
-            {
-                BBLog.Log(2, "Invalid format for arg 1(expected int): " + arg1);
-                return;
-            }
-            if (!int.TryParse(arg2, out int result2))
-            {
-                BBLog.Log(2, "Invalid format for arg 2(expected int): " + arg2);
-                return;
-            }
-
-            TryBalance(players, result1, result2);
+            return player is { IsValid: true, Connected: PlayerConnectedState.PlayerConnected, TeamNum: 2 or 3 };
         }
 
         public override void Load(bool hotReload)
         {
             base.Load(hotReload);
+            AddCommand(Config.ScrambleCommand, "Scramble Teams",
+                [CommandHelper(minArgs: 1, usage: "[1: Random, 2: Based on kills]", whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
+            (player, info) =>
+            {
+                if (!player!.IsValid && AdminManager.PlayerHasPermissions(player, Config.PermissionRequired))
+                {
+                    return;
+                }
+
+                string arg1 = info.GetArg(1);
+                List<CCSPlayerController> players = Utilities.GetPlayers().Where(IsPlayerValid).ToList();
+                if (!int.TryParse(arg1, out int result))
+                {
+                    result = Config.MoveMode;
+                    return;
+                }
+                if (player!.IsValid)
+                {
+                    BBLog.LogToChat(player, $" {ChatColors.Green}Scrambling teams with mode {result}");
+                    BBLog.Log(0, $"Scrambling teams with mode {result}");
+                }
+                TryScramble(players, result);
+            });
+            AddCommand(Config.BalanceCommand, "Balance Teams",
+                [CommandHelper(minArgs: 2, usage: "[balance mode] [move mode]", whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
+            (player, info) =>
+                {
+                    if (!player!.IsValid && AdminManager.PlayerHasPermissions(player, Config.PermissionRequired))
+                    {
+                        BBLog.LogToChat(player, $" {ChatColors.Red}You don't have permission to use this command");
+                        return;
+                    }
+
+                    string arg1 = info.GetArg(1);
+                    string arg2 = info.GetArg(2);
+                    List<CCSPlayerController> players = Utilities.GetPlayers().Where(IsPlayerValid).ToList();
+                    if (!int.TryParse(arg1, out int result1))
+                    {
+                        BBLog.LogToChat(player, $" {ChatColors.Red}Invalid balance mode");
+                        return;
+                    }
+                    if (!int.TryParse(arg2, out int result2))
+                    {
+                        BBLog.LogToChat(player, $" {ChatColors.Red}Invalid move mode");
+                        return;
+                    }
+                    if (player!.IsValid)
+                    {
+                        BBLog.LogToChat(player, $" {ChatColors.Green}Balancing teams with mode {result1} and move mode {result2}");
+                        BBLog.Log(0, $"Balancing teams with mode {result1} and move mode {result2}");
+                    }
+                    TryBalance(players, result1, result2);
+                });
             RegisterEventHandler<EventCsWinPanelMatch>((e, info) =>
             {
                 RecentPlayers.Clear();
                 return HookResult.Continue;
             });
-            RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
-            RegisterEventHandler<EventPlayerConnectFull>(OnConnect);
+            RegisterEventHandler<EventRoundEnd>((e, info) =>
+            {
+                if (!Config.AutoBalance)
+                {
+                    return HookResult.Continue;
+                }
+
+                TryBalance(Utilities.GetPlayers().Where(IsPlayerValid).ToList(), Config.BalanceMode, Config.MoveMode);
+                return HookResult.Continue;
+            });
+            RegisterEventHandler<EventPlayerConnect>((e, info) =>
+            {
+                RecentPlayers.Add(e.Userid);
+                return HookResult.Continue;
+            });
             RegisterEventHandler<EventPlayerDisconnect>((e, info) =>
             {
-                RecentPlayers.Remove(e.Userid);
+                _ = RecentPlayers.Remove(e.Userid);
                 return HookResult.Continue;
-            }, HookMode.Post);
-            BBLog.LogToConsole(ConsoleColor.Green, $"[BetterBalance] -> {ModuleName} version {ModuleVersion} loaded");
+            });
+            BBLog.Log(1, $"{ModuleName} version {ModuleVersion} loaded");
         }
 
         public void OnConfigParsed(BetterBalanceConfig config)
         {
             Config = config;
-            BBLog.LogToConsole(ConsoleColor.Green, $"[BetterBalance] -> Loading config file");
+            BBLog.SetPrefix(Config.ChatPrefix);
+            BBLog.Log(1, $"{ModuleName} version {ModuleVersion} config loaded");
         }
 
         public override void Unload(bool hotReload)
         {
             base.Unload(hotReload);
-            BBLog.LogToConsole(ConsoleColor.Green, $"[BetterBalance] -> {ModuleName} version {ModuleVersion} unloaded");
+            BBLog.Log(1, $"{ModuleName} version {ModuleVersion} unloaded");
         }
 
-        private static void ScrambleAllPlayers(List<CCSPlayerController> tplayers, List<CCSPlayerController> ctplayers)
-        {
-            var rand = new Random();
-
-            foreach (var player in tplayers.Concat(ctplayers))
-            {
-                var teamToJoin = rand.Next(0, 2) == 0 ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
-                player.SwitchTeam(teamToJoin);
-            }
-        }
-
-        private static void ScramblePlayersByKills(List<CCSPlayerController> tplayers, List<CCSPlayerController> ctplayers)
+        private static void ScramblePlayersByKills(List<CCSPlayerController> players)
         {
             // Combine players from both teams and create a dictionary with player-to-kills mapping
-            var playerKills = tplayers.Concat(ctplayers)
-                                      .ToDictionary(player => player, player => player?.ActionTrackingServices?.MatchStats.Kills);
+            Dictionary<CCSPlayerController, int?> playerKills = players.ToDictionary(player => player, player => player?.ActionTrackingServices?.MatchStats.Kills);
 
             // Order players by kills in descending order
-            var orderedPlayers = playerKills.OrderByDescending(pair => pair.Value)
+            List<CCSPlayerController> orderedPlayers = playerKills.OrderByDescending(pair => pair.Value)
                                             .Select(pair => pair.Key)
                                             .ToList();
 
-            var IsT = true;
+            bool IsT = orderedPlayers.FirstOrDefault()!.TeamNum == 2;
 
             // Separate players with fewer kills to the other team
-            for (var i = 0; i < orderedPlayers.Count - 1; i++)
+            for (int i = 1; i < orderedPlayers.Count; i++)
             {
-                var player = orderedPlayers[i];
-                if (IsT)
+                CCSPlayerController player = orderedPlayers[i];
+                if (!IsT)
                 {
                     player.SwitchTeam(CsTeam.Terrorist);
-                    IsT = false;
+                    IsT = !IsT;
                 }
                 else
                 {
                     player.SwitchTeam(CsTeam.CounterTerrorist);
-                    IsT = true;
+                    IsT = !IsT;
+                }
+                if (orderedPlayers.Count % 2 == 1)
+                {
+                    orderedPlayers[^1].SwitchTeam(IsT ? CsTeam.CounterTerrorist : CsTeam.Terrorist);
                 }
             }
-
-            // Handle the last player separately
-            var lastPlayer = orderedPlayers.Last();
-            lastPlayer.SwitchTeam(IsT ? CsTeam.CounterTerrorist : CsTeam.Terrorist);
         }
 
-        private void BalanceBasedOnMaxPlayers(List<CCSPlayerController> tplayers, List<CCSPlayerController> ctplayers,
-    int tcounts, int ctcounts, int maxTPlayers, int maxCTPlayers)
-        {
-            if (tcounts <= maxTPlayers && ctcounts <= maxCTPlayers)
-            {
-                BBLog.Log(1, "Team limit has not been reached");
-                return;
-            }
-
-            if (tcounts > maxTPlayers)
-            {
-                BalanceTeams(tplayers, maxCTPlayers - ctcounts, CsTeam.CounterTerrorist, 1);
-            }
-            if (ctcounts > maxCTPlayers)
-            {
-                BalanceTeams(ctplayers, maxTPlayers - tcounts, CsTeam.Terrorist, 1);
-            }
-            if (tcounts > maxTPlayers && ctcounts > maxCTPlayers)
-            {
-                MoveExceededPlayersToSpectator(tcounts, ctcounts, maxTPlayers, maxCTPlayers);
-            }
-        }
-
-        private void BalanceBasedOnTeamDifference(List<CCSPlayerController> tplayers, List<CCSPlayerController> ctplayers,
+        private void BalanceDiff(List<CCSPlayerController> tplayers, List<CCSPlayerController> ctplayers,
             int tcounts, int ctcounts, int diff, int movemode)
         {
             int numtomove = (int)Math.Floor((double)diff / 2);
             if (tcounts > ctcounts)
             {
-                switch (movemode)
-                {
-                    case 1:
-                        MoveRecentPlayers(CsTeam.CounterTerrorist, numtomove);
-                        break;
-
-                    case 2:
-                        MoveRandomPlayers(tplayers, CsTeam.CounterTerrorist, numtomove);
-                        break;
-                }
+                BalanceTeams(tplayers, numtomove, CsTeam.CounterTerrorist, movemode);
             }
             else if (ctcounts > tcounts)
             {
-                switch (movemode)
-                {
-                    case 1:
-                        MoveRecentPlayers(CsTeam.Terrorist, numtomove);
-                        break;
+                BalanceTeams(ctplayers, numtomove, CsTeam.Terrorist, movemode);
+            }
+        }
 
-                    case 2:
-                        MoveRandomPlayers(ctplayers, CsTeam.Terrorist, numtomove);
-                        break;
+        private void BalanceMax(List<CCSPlayerController> players, int movemode)
+        {
+            List<CCSPlayerController> tplayers = new();
+            List<CCSPlayerController> ctplayers = new();
+
+            foreach (CCSPlayerController player in players)
+            {
+                if (player.TeamNum == 2)
+                {
+                    tplayers.Add(player);
                 }
+                else if (player.TeamNum == 3)
+                {
+                    ctplayers.Add(player);
+                }
+            }
+
+            int tcounts = tplayers.Count;
+            int ctcounts = ctplayers.Count;
+            int tdiff = tcounts - Config.MaxTPlayers;
+            int ctdiff = ctcounts - Config.MaxCTPlayers;
+
+            if (tdiff < 0 && ctdiff < 0)
+            {
+                BBLog.Log(1, "Team limit has not been reached");
+                return;
+            }
+            if (tdiff > 0 && ctdiff > 0)
+            {
+                MoveExceededPlayersToSpectator(tplayers, ctplayers, tdiff, ctdiff, movemode);
+            }
+
+            if (tdiff > 0)
+            {
+                BalanceTeams(tplayers, tdiff, CsTeam.CounterTerrorist, 1);
+            }
+            if (ctdiff > 0)
+            {
+                BalanceTeams(ctplayers, ctdiff, CsTeam.Terrorist, 1);
             }
         }
 
@@ -182,90 +210,138 @@ namespace BetterBalance
             switch (movemode)
             {
                 case 1:
-                    MoveRecentPlayers(targetType, numToMove);
+                    if (RecentPlayers.Where(IsPlayerValid).Any())
+                    {
+                        MoveRecentPlayers(targetType, numToMove);
+                    }
+                    else
+                    {
+                        MoveRandomPlayers(sourceTeam, targetType, numToMove);
+                    }
                     break;
 
                 case 2:
+                    MoveRandomPlayers(sourceTeam, targetType, numToMove);
+                    break;
+
+                default:
                     MoveRandomPlayers(sourceTeam, targetType, numToMove);
                     break;
             }
         }
 
         private void MoveExceededPlayersToSpectator(
-            int count1, int count2, int maxCount1, int maxCount2)
+            List<CCSPlayerController> tplayers, List<CCSPlayerController> ctplayers, int tdiff, int ctdiff, int movemode)
         {
-            var counts = count1 + count2;
-            var max = maxCount1 + maxCount2;
-            var NumToMove = counts - max;
-
-            for (var i = 0; i < NumToMove; i++)
+            int diff = tdiff + ctdiff;
+            if (movemode == 1)
             {
-                if (counts < max)
+                for (int i = 0; i < diff; i++)
                 {
-                    break; // Stop if one of the teams is within its limit
+                    CCSPlayerController recentPlayer = RecentPlayers.Last();
+                    if (IsPlayerValid(recentPlayer))
+                    {
+                        SwitchMode(recentPlayer, CsTeam.Spectator);
+                    }
+                    else
+                    {
+                        i--;
+                        _ = RecentPlayers.Remove(recentPlayer);
+                    }
                 }
-
-                var recentPlayer = RecentPlayers.Last();
-                recentPlayer.SwitchTeam(CsTeam.Spectator);
-                counts--;
+            }
+            else
+            {
+                for (int i = 0; i < diff; i++)
+                {
+                    Random rand = new();
+                    int tplayer = rand.Next(0, tplayers.Count);
+                    int ctplayer = rand.Next(0, ctplayers.Count);
+                    if (tdiff > 0)
+                    {
+                        SwitchMode(tplayers[tplayer], CsTeam.Spectator);
+                        tplayers.RemoveAt(tplayer);
+                        tdiff--;
+                    }
+                    else if (ctdiff > 0)
+                    {
+                        SwitchMode(ctplayers[ctplayer], CsTeam.Spectator);
+                        ctplayers.RemoveAt(ctplayer);
+                        ctdiff--;
+                    }
+                }
             }
         }
 
         private void MoveRandomPlayers(List<CCSPlayerController> sourceTeam, CsTeam targetType, int numToMove)
         {
-            var rand = new Random();
+            Random rand = new();
 
-            for (var i = 0; i < numToMove; i++)
+            for (int i = 0; i < numToMove; i++)
             {
-                var sourceCount = sourceTeam.Count;
-                var a = rand.Next(0, sourceCount);
-                if (!Config.KillPlayerOnSwitch)
-                {
-                    sourceTeam[a].SwitchTeam(targetType);
-                }
-                else
-                {
-                    sourceTeam[a].ChangeTeam(targetType);
-                }
+                int sourceCount = sourceTeam.Count;
+                int a = rand.Next(0, sourceCount);
+                SwitchMode(sourceTeam[a], targetType);
             }
         }
 
         private void MoveRecentPlayers(CsTeam targetType, int numToMove)
         {
-            for (var i = 0; i < numToMove; i++)
+            for (int i = 0; i < numToMove; i++)
             {
-                var recentPlayer = RecentPlayers.Last();
-                if (!Config.KillPlayerOnSwitch)
+                CCSPlayerController recentPlayer = RecentPlayers.Last();
+                if (IsPlayerValid(recentPlayer))
                 {
-                    recentPlayer.SwitchTeam(targetType);
+                    if (!Config.KillPlayerOnSwitch)
+                    {
+                        recentPlayer.SwitchTeam(targetType);
+                    }
+                    else
+                    {
+                        recentPlayer.ChangeTeam(targetType);
+                    }
                 }
                 else
                 {
-                    recentPlayer.ChangeTeam(targetType);
+                    i--;
+                    _ = RecentPlayers.Remove(recentPlayer);
                 }
             }
         }
 
-        private HookResult OnConnect(EventPlayerConnectFull e, GameEventInfo info)
+        private void ScrambleAllPlayers(List<CCSPlayerController> players)
         {
-            RecentPlayers.Add(e.Userid);
-            return HookResult.Continue;
+            bool isTerrorist = true;
+            Random rand = new();
+            for (int i = 0; i < players.Count; i++)
+            {
+                List<int> result = Enumerable.Range(0, players.Count).OrderBy(g => rand.NextDouble()).ToList();
+                CsTeam teamToJoin = isTerrorist ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
+                SwitchMode(players[result[i]], teamToJoin);
+                isTerrorist = !isTerrorist;
+            }
         }
 
-        private HookResult OnRoundEnd(EventRoundEnd e, GameEventInfo info)
+        private void SwitchMode(CCSPlayerController player, CsTeam team)
         {
-            TryBalance(Utilities.GetPlayers().Where(IsPlayerValid).ToList(), Config.BalanceMode, Config.MoveMode);
-            return HookResult.Continue;
+            if (Config.KillPlayerOnSwitch)
+            {
+                player.ChangeTeam(team);
+            }
+            else
+            {
+                player.SwitchTeam(team);
+            }
         }
 
         private void TryBalance(List<CCSPlayerController> players, int balancemode, int movemode)
         {
-            var tplayers = players.Where(p => p.TeamNum == 2).ToList();
-            var ctplayers = players.Where(p => p.TeamNum == 3).ToList();
-            var tcounts = tplayers.Count;
-            var ctcounts = ctplayers.Count;
-            var maxTPlayers = Config.MaxTPlayers;
-            var maxCTPlayers = Config.MaxCTPlayers;
+            List<CCSPlayerController> tplayers = players.Where(p => p.TeamNum == 2).ToList();
+            List<CCSPlayerController> ctplayers = players.Where(p => p.TeamNum == 3).ToList();
+            int tcounts = tplayers.Count;
+            int ctcounts = ctplayers.Count;
+            int maxTPlayers = Config.MaxTPlayers;
+            int maxCTPlayers = Config.MaxCTPlayers;
 
             if (balancemode == 2) // Mode based on maximum players
             {
@@ -276,32 +352,40 @@ namespace BetterBalance
                 }
                 else
                 {
-                    Server.PrintToChatAll($" {ChatColors.Red}Teams are imbalanced, balancing now");
+                    BBLog.LogToChatAll(Config.ImBalanceMessage);
+                    BalanceMax(players, movemode);
                 }
-
-                BalanceBasedOnMaxPlayers(tplayers, ctplayers, tcounts, ctcounts, maxTPlayers, maxCTPlayers);
             }
             else if (balancemode == 1) // Mode based on team size difference
             {
-                var diff = Math.Abs(tcounts - ctcounts);
+                int diff = Math.Abs(tcounts - ctcounts);
                 if (diff <= Config.MaxDifference)
                 {
-                    BBLog.Log(0, "Team difference is under the Max allowed difference");
+                    BBLog.Log(0, "Team difference is under the Max difference");
                     return;
-                }
-
-                BalanceBasedOnTeamDifference(tplayers, ctplayers, tcounts, ctcounts, diff, movemode);
-            }
-            else
-            {
-                if (movemode == 1)
-                {
-                    ScrambleAllPlayers(tplayers, ctplayers);
                 }
                 else
                 {
-                    ScramblePlayersByKills(tplayers, ctplayers);
+                    BBLog.LogToChatAll(Config.ImBalanceMessage);
                 }
+
+                BalanceDiff(tplayers, ctplayers, tcounts, ctcounts, diff, movemode);
+            }
+            else
+            {
+                BBLog.Log(2, "Invalid balance mode");
+            }
+        }
+
+        private void TryScramble(List<CCSPlayerController> players, int movemode)
+        {
+            if (movemode == 1)
+            {
+                ScrambleAllPlayers(players);
+            }
+            else
+            {
+                ScramblePlayersByKills(players);
             }
         }
     }
