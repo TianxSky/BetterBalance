@@ -73,6 +73,10 @@ Here's a plugin for CounterStrikeSharp that automatically balances teams based o
 ```
 ## Roadmap
 
+- [x] Custom Commands
+- [x] Custom Perms
+- [x] Custom Message
+- [ ] Custom max diff per team
 - [ ] Schedule balance on round end
       
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
