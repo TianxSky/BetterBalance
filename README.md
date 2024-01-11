@@ -56,13 +56,19 @@ Here's a plugin for CounterStrikeSharp that automatically balances teams based o
 ## Plugin Config
 ```json
 {
+  "AutoBalance": true,
+  "PermissionRequired": "@css/generic",
+  "ChatPrefix": "[BetterBalance]",
+  "BalanceCommand": "css_balance",
+  "ScrambleCommand": "css_scramble",
+  "ImBalanceMessage": "{red} Teams are imbalanced, balancing now!",
   "BalanceMode": 1,
   "MoveMode": 1,
-  "KillPlayerOnBalance": true,
+  "KillPlayerOnBalance": false,
   "MaxDifference": 1,
   "Max_CT_Players": 1,
   "Max_T_Players": 1,
-  "ConfigVersion": 1
+  "ConfigVersion": 2
 }
 ```
 ## Roadmap
