@@ -35,20 +35,18 @@ Here's a plugin for CounterStrikeSharp that automatically balances teams based o
 ### Commands
 
 1. `css_balance`: requires 2 arguments(balance mode, move mode)
-   - Usage: `!balance 3 2`
-     - I use `!balance 3 2` all the time to create a fair and balanced team
+   - Usage: `!balance 1 1`
+1. `css_scramble`: requires 1 arguments(scramble mode)
+   - Usage: `!scramble 2`
 
-## Balance Mode
+### Balance Mode
 * 1 - Max Difference: Based on team's difference in numbers of players, auto balanced if difference > Config.MaxDifference
 * 2 - Team Limits: Based on max players can be on each team, defined in config
 * 3 - Scramble: This will affect all players
-  
-
-## Move Mode
-### Balance Mode 1/2:
+### Move Mode
 * 1 - Move Recent: Move the last player that joins the server
-* 2 - Move Random: Move a random player
-### Balance Mode 3:
+* 2 - Move Random: Move a random player  
+### Scramble Mode:
 * 1 - Scramble Random: Randomly putting each player on both teams
 * 2 - Scramble Based On Kills: Putting players to both teams based on kills and will put the extra player(if any) on the opposite team of player with highest kill
 
